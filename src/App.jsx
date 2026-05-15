@@ -118,14 +118,19 @@ const PRICING = {
 };
 
 export default function App() {
-  const [screen, setScreen] = useState("home"); // home | select | form | preview | pricing
+  const params = new URLSearchParams(window.location.search);
+  const successType = params.get("success") === "true" ? params.get("type") : null;
+  const successDocId = params.get("docId") || null;
+
+  const [screen, setScreen] = useState("home");
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [formData, setFormData] = useState({});
   const [generatedDoc, setGeneratedDoc] = useState("");
   const [loading, setLoading] = useState(false);
   const [pricingTab, setPricingTab] = useState("payper");
-  const [subscribed, setSubscribed] = useState(false);
-  const [purchased, setPurchased] = useState([]);
+  const [subscribed, setSubscribed] = useState(successType === "monthly" || successType === "annual");
+  const [purchased, setPurchased] = useState(successDocId ? [successDocId] : []);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const isUnlocked = (doc) => subscribed || purchased.includes(doc.id) || !doc.premium;
 
@@ -169,14 +174,36 @@ export default function App() {
     navigator.clipboard.writeText(generatedDoc);
   };
 
-  const handlePurchase = (docId) => {
-    setPurchased((p) => [...p, docId]);
-    setScreen("form");
+  const handlePurchase = async (docId, docLabel) => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "payper", docId, docLabel }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      alert("Error starting checkout. Please try again.");
+    }
+    setCheckoutLoading(false);
   };
 
-  const handleSubscribe = () => {
-    setSubscribed(true);
-    setScreen("select");
+  const handleSubscribe = async (type) => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      alert("Error starting checkout. Please try again.");
+    }
+    setCheckoutLoading(false);
   };
 
   return (
@@ -375,7 +402,7 @@ export default function App() {
                     <li>✅ One-time unlock</li>
                   </ul>
                   {selectedDoc?.premium ? (
-                    <button style={styles.btnPrimary} onClick={() => handlePurchase(selectedDoc.id)}>
+                    <button style={styles.btnPrimary} onClick={() => handlePurchase(selectedDoc.id, selectedDoc.label)}>
                       Unlock {selectedDoc.label}
                     </button>
                   ) : (
@@ -399,7 +426,7 @@ export default function App() {
                     <li>✅ Priority support</li>
                     <li>✅ New docs added monthly</li>
                   </ul>
-                  <button style={styles.btnPrimary} onClick={handleSubscribe}>Subscribe Monthly</button>
+                  <button style={styles.btnPrimary} onClick={() => handleSubscribe("monthly")}>{checkoutLoading ? "Loading..." : "Subscribe Monthly"}</button>
                 </div>
                 <div style={{ ...styles.pricingCard, ...styles.pricingCardFeatured }}>
                   <div style={styles.featuredTag}>BEST VALUE</div>
@@ -412,7 +439,7 @@ export default function App() {
                     <li>✅ 2 months free</li>
                     <li>✅ Early access to new docs</li>
                   </ul>
-                  <button style={styles.btnPrimary} onClick={handleSubscribe}>Subscribe Annually</button>
+                  <button style={styles.btnPrimary} onClick={() => handleSubscribe("annual")}>{checkoutLoading ? "Loading..." : "Subscribe Annually"}</button>
                 </div>
               </div>
             )}
