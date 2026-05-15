@@ -151,14 +151,10 @@ export default function App() {
     const prompt = `You are a professional legal document drafter. Generate a formal, professional ${selectedDoc.label} document based on the following information:\n\n${fieldSummary}\n\nFormat it as a proper legal letter with today's date, proper salutation, body paragraphs, and closing. Use firm but professional language. Include relevant legal references where appropriate. Do not include any explanation—only the document itself.`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }],
-        }),
+        body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
       const text = data.content?.find((b) => b.type === "text")?.text || "Error generating document.";
